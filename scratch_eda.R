@@ -1,7 +1,10 @@
 library("lattice")
 library("stringr")
+library("rstudioapi")
 
-setwd("/Users/greg.bolla/Desktop/git-projects/driven-data-taarifa")
+#setwd("/Users/greg.bolla/Desktop/git-projects/driven-data-taarifa")
+current_path <- getActiveDocumentContext()$path
+setwd(dirname(current_path))
 
 training.values <- read.csv("data/training_set_values.csv", header = TRUE)
 # num rows of test is 54000. divide into validation set
@@ -244,9 +247,10 @@ histogram(~ factor(status_group) | basin, data = two.col.df)
 write.csv(basin.df, "output/basin_detail.csv")
 
 #####
-#
+# region_code
 #####
-
+predictor.var <- 'region_code'
+two.col.df <- training.set[,c("id", predictor.var, response.var)]
 
 #####
 #
