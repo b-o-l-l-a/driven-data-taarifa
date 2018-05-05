@@ -25,23 +25,72 @@ num.rows <- nrow(training.set)
 response.freqs <- table(training.set[,response.var])
 response.props <- prop.table(margin.table(response.freqs, 1))
 
-aggregate.vals <- function(pred.df, subsetted.df, predictor.var, response.var){
+aggregate.vals <- function(pred.df, df, predictor.var, response.var){
   groups <- c("large", "medium", "small")
   perc.obs.cutoffs <- c(.05, .01, 0)
   
   cutoffs <- as.list(perc.obs.cutoffs)
   names(cutoffs) <- groups
+  
+  aggregated.var.name <- paste(predictor.var, "group", sep=".")
+  pred.df[,aggregated.var.name] <- NULL
+  
+  pred.df[,aggregated.var.name] <- with(pred.df, 
+                                     ifelse(perc.obs < cutoffs$medium, 'small', 
+                                        ifelse(perc.obs < cutoffs$large & functional > response.props["functional"], 'medium above',
+                                        ifelse(perc.obs < cutoffs$large & functional <= response.props["functional"], 'medium below',         
+                                            ifelse(perc.obs >= cutoffs$large & functional > response.props["functional"], 'large above', 
+                                                'large below')))))
+  
+  small.pred.vals <- row.names(pred.df)[apply(pred.df, 1, function(row) row[aggregated.var.name] =='small')]
+  med.above.pred.vals <- row.names(pred.df)[apply(pred.df, 1, function(row) row[aggregated.var.name]=='medium above')]
+  med.below.pred.vals <- row.names(pred.df)[apply(pred.df, 1, function(row) row[aggregated.var.name]=='medium below')]
+  large.above.pred.vals <- row.names(pred.df)[apply(pred.df, 1, function(row) row[aggregated.var.name]=='large above')]
+  large.below.pred.vals <- row.names(pred.df)[apply(pred.df, 1, function(row) row[aggregated.var.name]=='large below')]
+
+#   if (all(length(small.pred.vals) > 0,
+#           length(med.above.pred.vals) > 0,
+#           length(med.below.pred.vals) > 0, 
+#           length(large.above.pred.vals) > 0,
+#           length(large.below.pred.vals) > 0
+#           )
+#   ) {
+  df[,aggregated.var.name] <- NA
+  df[,aggregated.var.name][df[,predictor.var] %in% small.pred.vals ] <- 'small'
+  df[,aggregated.var.name][df[,predictor.var] %in% med.above.pred.vals ] <- 'medium above'
+  df[,aggregated.var.name][df[,predictor.var] %in% med.below.pred.vals ] <- 'medium below'
+  df[,aggregated.var.name][df[,predictor.var] %in% large.above.pred.vals ] <- 'large above'
+  df[,aggregated.var.name][df[,predictor.var] %in% large.below.pred.vals ] <- 'large below'
+    
+  # pred.aggregated <- apply(df, 1, function(row) {
+  #   if(length(small.pred.vals) > 0) {
+  #     ifelse(row[predictor.var] %in% small.pred.vals, 'small', row[,aggregated.var.name])
+  #   }  
+  #   if( length(med.above.pred.vals) > 0 ) {
+  #     ifelse(row[predictor.var] %in% med.above.pred.vals, 'medium above', row[,aggregated.var.name])
+  #   }
+  #             
+  #                   # ifelse(row[predictor.var] %in% med.below.pred.vals, 'medium below', 
+  #                   #        ifelse(row[predictor.var] %in% large.above.pred.vals, 'large above',
+  #                   #               'large below'))))
+  #   })
+  #   
+  # df[,aggregated.var.name] <- pred.aggregated
+    table(df[,response.var], df[,aggregated.var.name])
+    print(prop.table(table(df[,response.var], df[,aggregated.var.name]), 2))
+  write.csv(pred.df, paste("output/", predictor.var, "_detail.csv", sep=""))
+  return(df)
 }
 
-factor.eda.fxn <- function(subsetted.df, predictor.var, response.var, num.rows) {
+factor.eda.fxn <- function(df, predictor.var, response.var, num.rows) {
   num.values.cutoff <- 10
   
-  freq <- as.data.frame(table(subsetted.df[,predictor.var]))
+  freq <- as.data.frame(table(df[,predictor.var]))
   colnames(freq) <- c(predictor.var, "count")
   rownames(freq) <- freq[,predictor.var]
   freq <- freq[,"count", drop=FALSE]
   
-  response.freq <- table(subsetted.df[,predictor.var], subsetted.df[,response.var])
+  response.freq <- table(df[,predictor.var], df[,response.var])
   response.prop <- as.data.frame.matrix(prop.table(response.freq, 1))
   pred.df <- merge(freq, response.prop, by=0)
   rownames(pred.df) <- pred.df$Row.names
@@ -51,16 +100,19 @@ factor.eda.fxn <- function(subsetted.df, predictor.var, response.var, num.rows) 
   pred.df <- within(pred.df, cuml.perc.obs <- cumsum(perc.obs))
   
   if(nrow(freq) > num.values.cutoff) {
-    var.to.be.named.later <- aggregate.vals(pred.df, subsetted.df, predictor.var, response.var)
+    print(paste("aggregating vals"))
+    df <- aggregate.vals(pred.df, df, predictor.var, response.var)
+  } else{
+    print(prop.table(table(df[,response.var], df[,predictor.var]), 2))
   }
-  return 
+  return(df)
 }
 
 not.useful.cols <- c("id", "date_recorded", "num_private")
 for(col in col.names) {
-  print(col)
-  subsetted.df <- training.set[,c(id.var, predictor.var, response.var)]
-  if(class(subsetted.df[,predictor.var] == 'factor')) {
-    
+  if(col %in% not.useful.cols) {next}
+  if(class(training.set[,col]) == 'factor') {
+    print(paste("*****running factor fxn on col", col))
+    training.set <- factor.eda.fxn(training.set, col, response.var, num.rows)
   }
 }
