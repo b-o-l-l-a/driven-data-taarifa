@@ -14,7 +14,7 @@ training.set <- merge(training.values, training.labels, by = "id")
 training.set[,'construction_year'] <- as.factor(training.set[, 'construction_year'])
 training.set[,'region_code'] <- as.factor(training.set[, 'region_code'])
 training.set[,'date_recorded'] <- as.character(training.set[,'date_recorded'])
-
+training.set[,'district_code'] <- as.factor(training.set[, 'district_code'])
 
 col.names <- colnames(training.set)
 response.var <- 'status_group'
@@ -77,7 +77,11 @@ aggregate.vals <- function(pred.df, df, predictor.var, response.var){
   #   
   # df[,aggregated.var.name] <- pred.aggregated
     table(df[,response.var], df[,aggregated.var.name])
-    print(prop.table(table(df[,response.var], df[,aggregated.var.name]), 2))
+    #print(prop.table(table(df[,response.var], df[,aggregated.var.name]), 2))
+    jpeg(paste('output/images/factor_', aggregated.var.name, '.jpg', sep=""))
+    print(histogram(~ df[,response.var] | df[,aggregated.var.name] , data = df,  xlab = aggregated.var.name))
+    dev.off()
+    #print(histogram(~ df[,response.var] | df[,aggregated.var.name], data = df, xlab = aggregated.var.name))
   write.csv(pred.df, paste("output/", predictor.var, "_detail.csv", sep=""))
   return(df)
 }
@@ -100,19 +104,32 @@ factor.eda.fxn <- function(df, predictor.var, response.var, num.rows) {
   pred.df <- within(pred.df, cuml.perc.obs <- cumsum(perc.obs))
   
   if(nrow(freq) > num.values.cutoff) {
-    print(paste("aggregating vals"))
+    #print(paste("aggregating vals"))
     df <- aggregate.vals(pred.df, df, predictor.var, response.var)
   } else{
-    print(prop.table(table(df[,response.var], df[,predictor.var]), 2))
+    #print(prop.table(table(df[,response.var], df[,predictor.var]), 2))
+    jpeg(paste('output/images/factor_', predictor.var, '.jpg', sep=""))
+    print(histogram(~ df[,response.var] | df[,predictor.var] , data = df,  xlab = predictor.var))
+    dev.off()
+    #print(histogram(~ df[,response.var] | df[,predictor.var] , data = df,  xlab = predictor.var))
   }
   return(df)
 }
 
-not.useful.cols <- c("id", "date_recorded", "num_private")
+numeric.eda.fxn <- function(df, predictor.var, response.var) {
+  jpeg(paste('output/images/numeric_', predictor.var, '.jpg', sep=""))
+  print(densityplot(~ df[,predictor.var], groups = df[,response.var], data = training.set, xlab=predictor.var,plot.points = FALSE, ref = TRUE, auto.key = list(columns = 1)))
+  dev.off()
+}
+
+not.useful.cols <- c("id", "date_recorded", "num_private", response.var)
 for(col in col.names) {
   if(col %in% not.useful.cols) {next}
   if(class(training.set[,col]) == 'factor') {
-    print(paste("*****running factor fxn on col", col))
+    #print(paste("*****running factor fxn on col", col))
     training.set <- factor.eda.fxn(training.set, col, response.var, num.rows)
+  }
+  else {
+    numeric.eda.fxn(training.set, col, response.var)
   }
 }
