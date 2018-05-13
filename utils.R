@@ -95,3 +95,10 @@ numeric.eda.fxn <- function(df, predictor.var, response.var) {
   print(densityplot(~ df[,predictor.var], groups = df[,response.var], data = training.set, xlab=predictor.var,plot.points = FALSE, ref = TRUE, auto.key = list(columns = 1)))
   dev.off()
 }
+
+non.predictors.fxn <- function(response.var) {
+  
+  non.preds <- c("id", "date_recorded", "num_private", "recorded_by", "subvillage.group", "ward.group" ,response.var)
+  return(non.preds)
+  
+}
