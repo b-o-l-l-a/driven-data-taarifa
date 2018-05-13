@@ -26,3 +26,5 @@ for(col in col.names) {
     numeric.eda.fxn(training.set, col, response.var)
   }
 }
+
+write.csv(training.set, paste("data/full_training_set.csv", sep=""))
